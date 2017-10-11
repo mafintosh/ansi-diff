@@ -1,4 +1,4 @@
-var diff = require('ansi-diff')(dimension())
+var diff = require('./')(dimension())
 
 // render now
 render()
