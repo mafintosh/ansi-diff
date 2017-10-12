@@ -53,7 +53,7 @@ Diff.prototype._wordwrap = function (line, result, needsNewline) {
       var part = line[i]
       if (wid - part.length < 0) {
         line[i] = part.slice(0, wid)
-        result.push(line)
+        result.push(line.slice(0, i + 1))
         wid = this.width
         line = line.slice(i)
         line[0] = part.slice(wid)
@@ -76,13 +76,14 @@ Diff.prototype.diff = function (a, b) {
   var result = []
   var len = Math.min(a.length, b.length)
 
-  result.push(MOVE_LEFT)
+  result.push(EMPTY)
 
   var sameLines = 0
   var differentLine = false
 
   // clear old lines
   while (b.length > len) {
+    result[0] = MOVE_LEFT
     result.push(CLEAR_LINE)
     result.push(MOVE_UP)
     b.pop()
@@ -99,6 +100,7 @@ Diff.prototype.diff = function (a, b) {
       continue
     }
 
+    result[0] = MOVE_LEFT
     differentLine = true
     this._diffLine(ai, bi, result)
   }
@@ -106,6 +108,7 @@ Diff.prototype.diff = function (a, b) {
   var linesToDiff = b.length - sameLines
 
   if (linesToDiff > 1) {
+    result[0] = MOVE_LEFT
     result[moveUpIndex] = moveUp(linesToDiff - 1)
   }
 
