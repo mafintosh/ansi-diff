@@ -7,6 +7,8 @@ If you write out the diff to the terminal it will update the previous output wit
 npm install ansi-diff
 ```
 
+[![Build Status](https://travis-ci.org/mafintosh/ansi-diff.svg?branch=master)](https://travis-ci.org/mafintosh/ansi-diff)
+
 ## Usage
 
 ``` js
