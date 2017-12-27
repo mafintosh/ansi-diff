@@ -1,6 +1,6 @@
 {
   "name": "ansi-diff",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A module that diffs an input buffer with the previous one provided to it and outputs the diff as ANSI",
   "main": "index.js",
   "dependencies": {
