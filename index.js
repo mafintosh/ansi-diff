@@ -66,7 +66,7 @@ Diff.prototype.update = function (buffer) {
     if (a.length === b.length && a.parts.length === 1 && b.parts.length === 1) {
       var left = a.diffLeft(b)
       var right = a.diffRight(b)
-      var slice = a.raw.slice(left, -right)
+      var slice = a.raw.slice(left, right ? -right : a.length)
       if (left + right > 4 && left + slice.length < this.width - 1) {
         this._moveTo(left, a.y)
         this._push(Buffer.from(slice))
