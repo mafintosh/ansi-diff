@@ -184,11 +184,11 @@ Line.prototype.toBuffer = function () {
 }
 
 function inlineDiff (a, b) {
-  return a.length === b.length
-    && a.parts.length === 1
-    && b.parts.length === 1
-    && a.newline
-    && b.newline
+  return a.length === b.length &&
+    a.parts.length === 1 &&
+    b.parts.length === 1 &&
+    a.newline &&
+    b.newline
 }
 
 function split (str, term) {
