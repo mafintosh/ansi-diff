@@ -25,7 +25,7 @@ Diff.prototype.resize = function (opts) {
   if (opts.width) this.width = opts.width
   if (opts.height) this.height = opts.height
 
-  if (this.buffer) this.update(this.buffer)
+  if (this._buffer) this.update(this._buffer)
 
   var last = top(this._lines)
 
