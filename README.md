@@ -56,7 +56,7 @@ the diff will still work.
 #### `var changes = diff.update(buffer)`
 
 Update the buffer and return the diff between this and the previous one.
-The diff is returned in ANSI so you can write it out to the terminal.
+The diff is returned in ANSI as a buffer so you can write it out to the terminal.
 
 #### `diff.resize([options])`
 
@@ -72,9 +72,9 @@ Options should look like this:
 }
 ```
 
-#### `diff.buffer`
+#### `diff.toString()`
 
-Property containing last passed buffer.
+Returns the last diffed string.
 
 #### `diff.width`
 

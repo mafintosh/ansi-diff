@@ -1,10 +1,7 @@
-var split = require('ansi-split')
+var ansi = require('ansi-split')
 
-var MOVE_LEFT = makeBuffer([0x1b, 0x5b, 0x31, 0x30, 0x30, 0x30, 0x44])
-var MOVE_UP = makeBuffer([0x1b, 0x5b, 0x31, 0x41])
-var MOVE_DOWN = makeBuffer([0x1b, 0x5b, 0x31, 0x42])
-var CLEAR_LINE = makeBuffer([0x1b, 0x5b, 0x30, 0x4b])
-var EMPTY = makeBuffer([])
+var CLEAR_LINE = Buffer.from([0x1b, 0x5b, 0x30, 0x4b])
+var NEWLINE = Buffer.from('\n')
 
 module.exports = Diff
 
@@ -12,143 +9,219 @@ function Diff (opts) {
   if (!(this instanceof Diff)) return new Diff(opts)
   if (!opts) opts = {}
 
-  this.width = opts.width || 0
-  this.height = opts.height || 0
-  this.buffer = null
+  this.x = 0
+  this.y = 0
+  this.width = opts.width || Infinity
+  this.height = opts.height || Infinity
 
-  this._prevLines = []
+  this._buffer = null
+  this._out = []
+  this._lines = []
 }
 
 Diff.prototype.resize = function (opts) {
-  if (typeof opts === 'number') opts = {width: opts}
   if (!opts) opts = {}
 
   if (opts.width) this.width = opts.width
   if (opts.height) this.height = opts.height
-  if (this.buffer !== null) this.update(this.buffer)
-}
 
-Diff.prototype.update = function (buf) {
-  this.buffer = buf
+  if (this.buffer) this.update(this.buffer)
 
-  var lines = (Buffer.isBuffer(buf) ? buf.toString() : buf).split('\n')
-  var wrappedLines = []
-  var prevLines = this._prevLines
+  var last = top(this._lines)
 
-  for (var i = 0; i < lines.length; i++) {
-    this._wordwrap(split(lines[i]), wrappedLines, i < lines.length - 1)
+  if (!last) {
+    this.x = 0
+    this.y = 0
+  } else {
+    this.x = last.remainder
+    this.y = last.y + last.height
   }
-
-  this._prevLines = wrappedLines
-
-  var diff = this.diff(wrappedLines, prevLines)
-  return diff.length ? Buffer.concat(diff) : EMPTY
 }
 
-Diff.prototype._wordwrap = function (line, result, needsNewline) {
-  var wid = this.width
+Diff.prototype.toString = function () {
+  return this._buffer
+}
 
-  if (wid && line.length) {
-    for (var i = 0; i < line.length; i += 2) { // += 2 to jump ansi
-      var part = line[i]
-      if (wid - part.length < 0) {
-        line[i] = part.slice(0, wid)
-        result.push(line.slice(0, i + 1))
-        wid = this.width
-        line = line.slice(i)
-        line[0] = part.slice(wid)
-        i -= 2
+Diff.prototype.update = function (buffer) {
+  this._buffer = Buffer.isBuffer(buffer) ? buffer.toString() : buffer
+
+  var other = this._buffer
+  var oldLines = this._lines
+  var lines = split(other, this)
+
+  this._lines = lines
+  this._out = []
+
+  var min = Math.min(lines.length, oldLines.length)
+  var i = 0
+  var a
+  var b
+
+  for (; i < min; i++) {
+    a = lines[i]
+    b = oldLines[i]
+
+    if (same(a, b)) continue
+
+    if (a.length === b.length && a.parts.length === 1 && b.parts.length === 1) {
+      var left = a.diffLeft(b)
+      var right = a.diffRight(b)
+      var slice = a.raw.slice(left, -right)
+      if (left + right > 4 && left + slice.length < this.width - 1) {
+        this._moveTo(left, a.y)
+        this._push(Buffer.from(slice))
+        this.x += slice.length
+        continue
       }
     }
+
+    this._moveTo(0, a.y)
+    this._write(a)
+    if (b.length > a.length) this._push(CLEAR_LINE)
+    if (a.newline) this._newline()
   }
 
-  if (needsNewline) pushNewline(line)
-  if (line.length) result.push(line)
+  for (; i < lines.length; i++) {
+    a = lines[i]
+
+    this._moveTo(0, a.y)
+    this._write(a)
+    if (a.newline) this._newline()
+  }
+
+  var oldLast = top(oldLines)
+  var last = top(lines)
+
+  if (oldLast && (!last || last.y + last.height < oldLast.y + oldLast.height)) {
+    this._clearDown(oldLast.y + oldLast.height)
+  }
+
+  if (last) {
+    this._moveTo(last.remainder, last.y + last.height)
+  }
+
+  return Buffer.concat(this._out)
 }
 
-Diff.prototype._diffLine = function (a, b, res) {
-  res.push(CLEAR_LINE)
-  res.push(makeBuffer(a.join('')))
-  return true
+Diff.prototype._clearDown = function (y) {
+  for (var i = this.y; i < y; i++) {
+    this._moveTo(0, i)
+    this._push(CLEAR_LINE)
+  }
 }
 
-Diff.prototype.diff = function (a, b) {
-  var result = []
-  var len = Math.min(a.length, b.length)
-
-  result.push(EMPTY)
-
-  var sameLines = 0
-  var differentLine = false
-
-  // clear old lines
-  while (b.length > len) {
-    result[0] = MOVE_LEFT
-    result.push(CLEAR_LINE)
-    result.push(MOVE_UP)
-    b.pop()
-  }
-
-  var moveUpIndex = result.push(EMPTY) - 1
-
-  for (var i = 0; i < len; i++) {
-    var ai = a[i]
-    var bi = b[i]
-
-    if (same(ai, bi) && !differentLine) {
-      sameLines++
-      continue
-    }
-
-    result[0] = MOVE_LEFT
-    differentLine = true
-    this._diffLine(ai, bi, result)
-  }
-
-  var linesToDiff = b.length - sameLines
-
-  if (linesToDiff > 1) {
-    result[0] = MOVE_LEFT
-    result[moveUpIndex] = moveUp(linesToDiff - 1)
-  }
-
-  for (; len < a.length; len++) {
-    result.push(makeBuffer(a[len].join('')))
-  }
-
-  // no changes
-  if (result.length === 2) return []
-
-  return result
+Diff.prototype._newline = function () {
+  this._push(NEWLINE)
+  this.x = 0
+  this.y++
 }
 
-function pushNewline (row) {
-  if (row.length & 1) row[row.length - 1] += '\n'
-  else row.push('\n')
+Diff.prototype._write = function (line) {
+  this._out.push(line.toBuffer())
+  this.x = line.remainder
+  this.y += line.height
+}
+
+Diff.prototype._moveTo = function (x, y) {
+  var dx = x - this.x
+  var dy = y - this.y
+
+  if (dx > 0) this._push(moveRight(dx))
+  else if (dx < 0) this._push(moveLeft(-dx))
+  if (dy > 0) this._push(moveDown(dy))
+  else if (dy < 0) this._push(moveUp(-dy))
+
+  this.x = x
+  this.y = y
+}
+
+Diff.prototype._push = function (buf) {
+  this._out.push(buf)
 }
 
 function same (a, b) {
-  if (a.length !== b.length) return false
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false
-  }
-  return true
+  return a.y === b.y && a.width === b.width && a.raw === b.raw
 }
 
-function moveRight (n) {
- return makeBuffer('1b5b' + toHex(n) + '43', 'hex')
+function top (list) {
+  return list.length ? list[list.length - 1] : null
+}
+
+function Line (str, y, nl, term) {
+  this.y = y
+  this.width = term.width
+  this.parts = ansi(str)
+  this.length = length(this.parts)
+  this.raw = str
+  this.newline = nl
+  this.height = Math.floor(this.length / term.width)
+  this.remainder = this.length - this.height * term.width
+  if (this.height && !this.remainder) {
+    this.height--
+    this.remainder = this.width
+  }
+}
+
+Line.prototype.diffLeft = function (other) {
+  var left = 0
+  for (; left < this.length; left++) {
+    if (this.raw[left] !== other.raw[left]) return left
+  }
+  return left
+}
+
+Line.prototype.diffRight = function (other) {
+  var right = 0
+  for (; right < this.length; right++) {
+    var r = this.length - right - 1
+    if (this.raw[r] !== other.raw[r]) return right
+  }
+  return right
+}
+
+Line.prototype.toBuffer = function () {
+  return Buffer.from(this.raw)
+}
+
+function split (str, term) {
+  var y = 0
+  var lines = str.split('\n')
+  var wrapped = []
+  var line
+
+  for (var i = 0; i < lines.length; i++) {
+    line = new Line(lines[i], y, i < lines.length - 1, term)
+    y += line.height + (line.newline ? 1 : 0)
+    wrapped.push(line)
+  }
+
+  return wrapped
 }
 
 function moveUp (n) {
-  if (n === 1) return MOVE_UP
-  return makeBuffer('1b5b' + toHex(n) + '41', 'hex')
+  return Buffer.from('1b5b' + toHex(n) + '41', 'hex')
+}
+
+function moveDown (n) {
+  return Buffer.from('1b5b' + toHex(n) + '42', 'hex')
+}
+
+function moveRight (n) {
+  return Buffer.from('1b5b' + toHex(n) + '43', 'hex')
+}
+
+function moveLeft (n) {
+  return Buffer.from('1b5b' + toHex(n) + '44', 'hex')
+}
+
+function length (parts) {
+  var len = 0
+  for (var i = 0; i < parts.length; i += 2) {
+    len += parts[i].length
+  }
+  return len
 }
 
 function toHex (n) {
-  return makeBuffer('' + n).toString('hex')
-}
-
-function makeBuffer (s, enc) {
-  if (Buffer.from) return Buffer.from(s, enc)
-  return new Buffer(s, enc)
+  return Buffer.from('' + n).toString('hex')
 }
