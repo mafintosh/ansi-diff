@@ -63,7 +63,7 @@ Diff.prototype.update = function (buffer) {
 
     if (same(a, b)) continue
 
-    if (a.length === b.length && a.parts.length === 1 && b.parts.length === 1) {
+    if (inlineDiff(a, b)) {
       var left = a.diffLeft(b)
       var right = a.diffRight(b)
       var slice = a.raw.slice(left, right ? -right : a.length)
@@ -181,6 +181,14 @@ Line.prototype.diffRight = function (other) {
 
 Line.prototype.toBuffer = function () {
   return Buffer.from(this.raw)
+}
+
+function inlineDiff (a, b) {
+  return a.length === b.length
+    && a.parts.length === 1
+    && b.parts.length === 1
+    && a.newline
+    && b.newline
 }
 
 function split (str, term) {
