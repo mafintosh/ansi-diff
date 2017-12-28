@@ -64,7 +64,9 @@ Diff.prototype.update = function (buffer) {
 
     if (same(a, b)) continue
 
-    if (!scrub && inlineDiff(a, b)) {
+    // if x === width there is an edgecase with inline diffing
+    // easiest solution is just not to do it then! :)
+    if (!scrub && this.x !== this.width && inlineDiff(a, b)) {
       var left = a.diffLeft(b)
       var right = a.diffRight(b)
       var slice = a.raw.slice(left, right ? -right : a.length)
