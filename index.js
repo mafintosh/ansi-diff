@@ -104,9 +104,11 @@ Diff.prototype.update = function (buffer) {
 }
 
 Diff.prototype._clearDown = function (y) {
-  for (var i = this.y + 1; i <= y; i++) {
-    this._moveTo(0, i)
+  var x = this.x
+  for (var i = this.y; i <= y; i++) {
+    this._moveTo(x, i)
     this._push(CLEAR_LINE)
+    x = 0
   }
 }
 
