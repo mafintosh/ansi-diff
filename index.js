@@ -157,7 +157,7 @@ function Line (str, y, nl, term) {
   this.raw = str
   this.newline = nl
   this.height = Math.floor(this.length / term.width)
-  this.remainder = this.length - this.height * term.width
+  this.remainder = this.length - (this.height && this.height * term.width)
   if (this.height && !this.remainder) {
     this.height--
     this.remainder = this.width
