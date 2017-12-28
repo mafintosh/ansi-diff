@@ -56,6 +56,7 @@ Diff.prototype.update = function (buffer) {
   var i = 0
   var a
   var b
+  var scrub = false
 
   for (; i < min; i++) {
     a = lines[i]
@@ -63,7 +64,7 @@ Diff.prototype.update = function (buffer) {
 
     if (same(a, b)) continue
 
-    if (inlineDiff(a, b)) {
+    if (!scrub && inlineDiff(a, b)) {
       var left = a.diffLeft(b)
       var right = a.diffRight(b)
       var slice = a.raw.slice(left, right ? -right : a.length)
@@ -77,7 +78,8 @@ Diff.prototype.update = function (buffer) {
 
     this._moveTo(0, a.y)
     this._write(a)
-    if (b.length > a.length) this._push(CLEAR_LINE)
+    if (a.y !== b.y) scrub = true
+    if (b.length > a.length || scrub) this._push(CLEAR_LINE)
     if (a.newline) this._newline()
   }
 
@@ -86,6 +88,7 @@ Diff.prototype.update = function (buffer) {
 
     this._moveTo(0, a.y)
     this._write(a)
+    if (scrub) this._push(CLEAR_LINE)
     if (a.newline) this._newline()
   }
 
@@ -191,7 +194,8 @@ function inlineDiff (a, b) {
     b.parts.length === 1 &&
     a.y === b.y &&
     a.newline &&
-    b.newline
+    b.newline &&
+    a.width === b.width
 }
 
 function split (str, term) {
