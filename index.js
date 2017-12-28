@@ -189,6 +189,7 @@ function inlineDiff (a, b) {
   return a.length === b.length &&
     a.parts.length === 1 &&
     b.parts.length === 1 &&
+    a.y === b.y &&
     a.newline &&
     b.newline
 }
