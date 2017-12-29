@@ -80,7 +80,7 @@ Diff.prototype.update = function (buffer) {
 
     this._moveTo(0, a.y)
     this._write(a)
-    if (a.y !== b.y) scrub = true
+    if (a.y !== b.y || a.height !== b.height) scrub = true
     if (b.length > a.length || scrub) this._push(CLEAR_LINE)
     if (a.newline) this._newline()
   }
