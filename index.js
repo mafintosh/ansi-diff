@@ -42,7 +42,7 @@ Diff.prototype.toString = function () {
   return this._buffer
 }
 
-Diff.prototype.update = function (buffer) {
+Diff.prototype.update = function (buffer, opts) {
   this._buffer = Buffer.isBuffer(buffer) ? buffer.toString() : buffer
 
   var other = this._buffer
@@ -101,7 +101,9 @@ Diff.prototype.update = function (buffer) {
     this._clearDown(oldLast.y + oldLast.height)
   }
 
-  if (last) {
+  if (opts && opts.moveTo) {
+    this._moveTo(opts.moveTo[0], opts.moveTo[1])
+  } else if (last) {
     this._moveTo(last.remainder, last.y + last.height)
   }
 
