@@ -55,10 +55,13 @@ If you provide the terminal width ansi-diff will be able to support word wrappin
 done by the terminal. That means that if you print out a line that is too long to fit in the terminal
 the diff will still work.
 
-#### `var changes = diff.update(buffer)`
+#### `var changes = diff.update(buffer, opts)`
 
 Update the buffer and return the diff between this and the previous one.
 The diff is returned in ANSI as a buffer so you can write it out to the terminal.
+
+* `opts.moveTo` - array of `[column,row]` to move the cursor after diffing the
+  screen (in absolute coordinates)
 
 #### `diff.resize([options])`
 
