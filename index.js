@@ -5,14 +5,24 @@ var NEWLINE = Buffer.from('\n')
 
 module.exports = Diff
 
-function Diff ({height=Infinity, softwareWrapping, width=Infinity}={}) {
-  if (!(this instanceof Diff)) return new Diff({height, softwareWrapping, width})
+function Diff (
+  {
+    height=Infinity,
+    softwareNewline,
+    softwareWrapping,
+    width=Infinity
+  }={}
+) {
+  if (!(this instanceof Diff))
+    return new Diff({height, softwareNewline, softwareWrapping, width})
 
   this.x = 0
   this.y = 0
   this.width = width
   this.height = height
 
+  this.softwareClearline = softwareNewline
+  this.softwareNewline = softwareNewline
   this.softwareWrapping = softwareWrapping
 
   this._buffer = null
@@ -111,11 +121,23 @@ Diff.prototype._clearDown = function (y) {
 }
 
 Diff.prototype._clearline = function () {
-  this._push(CLEAR_LINE)
+  this._push(this.softwareClearline
+            ? Buffer.alloc(this.width-this.x, ' ')
+            : CLEAR_LINE)
 }
 
 Diff.prototype._newline = function () {
-  this._push(NEWLINE)
+  if(this.softwareNewline) {
+    this._clearline()
+
+    // TODO scroll if we are at terminal bottom line to add a new one
+
+    this._push(moveLeft(this.width))
+    this._push(moveDown(1))
+  } else {
+    this._push(NEWLINE)
+  }
+
   this.x = 0
   this.y++
 }
