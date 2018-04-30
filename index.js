@@ -34,10 +34,10 @@ Diff.prototype.resize = function ({height, width}={}) {
   if (width ) this.width  = width
   if (height) this.height = height
 
-  if (this._buffer) this.update(this._buffer)
+  let result = ''
+  if (this._buffer) result = this.update(this._buffer)
 
   var last = top(this._lines)
-
   if (!last) {
     this.x = 0
     this.y = 0
@@ -45,6 +45,8 @@ Diff.prototype.resize = function ({height, width}={}) {
     this.x = last.remainder
     this.y = last.y + last.height
   }
+
+  return result
 }
 
 Diff.prototype.toString = function () {
