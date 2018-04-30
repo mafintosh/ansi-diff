@@ -5,13 +5,15 @@ var NEWLINE = Buffer.from('\n')
 
 module.exports = Diff
 
-function Diff ({height=Infinity, width=Infinity}={}) {
-  if (!(this instanceof Diff)) return new Diff({height, width})
+function Diff ({height=Infinity, softwareWrapping, width=Infinity}={}) {
+  if (!(this instanceof Diff)) return new Diff({height, softwareWrapping, width})
 
   this.x = 0
   this.y = 0
   this.width = width
   this.height = height
+
+  this.softwareWrapping = softwareWrapping
 
   this._buffer = null
   this._out = []
@@ -119,10 +121,26 @@ Diff.prototype._newline = function () {
 }
 
 Diff.prototype._write = function (line, clearline) {
-  this._moveTo(0, line.y)
-  this._out.push(line.toBuffer())
+  const {height, y} = line
+  let buffer = line.toBuffer()
+
+  this._moveTo(0, y)
+
+  if(this.softwareWrapping && height) {
+    const {width} = this
+
+    let i=0
+    for(; i<height; i++) {
+      this._push(buffer.slice(i*width, (i+1)*width))
+      this._moveTo(0, y+i+1)
+    }
+    buffer = buffer.slice(i*width)
+  }
+
+  this._push(buffer)
+
   this.x = line.remainder
-  this.y += line.height
+  this.y += height
 
   if (clearline) this._clearline()
   if (line.newline) this._newline()
