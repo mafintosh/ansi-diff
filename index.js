@@ -5,25 +5,22 @@ var NEWLINE = Buffer.from('\n')
 
 module.exports = Diff
 
-function Diff (opts) {
-  if (!(this instanceof Diff)) return new Diff(opts)
-  if (!opts) opts = {}
+function Diff ({height=Infinity, width=Infinity}={}) {
+  if (!(this instanceof Diff)) return new Diff({height, width})
 
   this.x = 0
   this.y = 0
-  this.width = opts.width || Infinity
-  this.height = opts.height || Infinity
+  this.width = width
+  this.height = height
 
   this._buffer = null
   this._out = []
   this._lines = []
 }
 
-Diff.prototype.resize = function (opts) {
-  if (!opts) opts = {}
-
-  if (opts.width) this.width = opts.width
-  if (opts.height) this.height = opts.height
+Diff.prototype.resize = function ({height, width}={}) {
+  if (width ) this.width  = width
+  if (height) this.height = height
 
   if (this._buffer) this.update(this._buffer)
 
@@ -42,7 +39,7 @@ Diff.prototype.toString = function () {
   return this._buffer
 }
 
-Diff.prototype.update = function (buffer, opts) {
+Diff.prototype.update = function (buffer, {moveTo}={}) {
   this._buffer = Buffer.isBuffer(buffer) ? buffer.toString() : buffer
 
   var other = this._buffer
@@ -101,8 +98,8 @@ Diff.prototype.update = function (buffer, opts) {
     this._clearDown(oldLast.y + oldLast.height)
   }
 
-  if (opts && opts.moveTo) {
-    this._moveTo(opts.moveTo[0], opts.moveTo[1])
+  if (moveTo) {
+    this._moveTo(moveTo[0], moveTo[1])
   } else if (last) {
     this._moveTo(last.remainder, last.y + last.height)
   }
