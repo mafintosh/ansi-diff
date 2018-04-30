@@ -75,20 +75,12 @@ Diff.prototype.update = function (buffer, {moveTo}={}) {
       }
     }
 
-    this._moveTo(0, a.y)
-    this._write(a)
     if (a.y !== b.y || a.height !== b.height) scrub = true
-    if (b.length > a.length || scrub) this._clearline()
-    if (a.newline) this._newline()
+    this._write(a, b.length > a.length || scrub)
   }
 
   for (; i < lines.length; i++) {
-    a = lines[i]
-
-    this._moveTo(0, a.y)
-    this._write(a)
-    if (scrub) this._clearline()
-    if (a.newline) this._newline()
+    this._write(lines[i], scrub)
   }
 
   var oldLast = top(oldLines)
@@ -126,10 +118,14 @@ Diff.prototype._newline = function () {
   this.y++
 }
 
-Diff.prototype._write = function (line) {
+Diff.prototype._write = function (line, clearline) {
+  this._moveTo(0, line.y)
   this._out.push(line.toBuffer())
   this.x = line.remainder
   this.y += line.height
+
+  if (clearline) this._clearline()
+  if (line.newline) this._newline()
 }
 
 Diff.prototype._moveTo = function (x, y) {
