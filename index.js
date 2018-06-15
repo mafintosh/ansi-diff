@@ -149,7 +149,7 @@ Diff.prototype._push = function (buf) {
 }
 
 function same (a, b) {
-  return a.y === b.y && a.width === b.width && a.raw === b.raw
+  return a.y === b.y && a.width === b.width && a.raw === b.raw && a.newline === b.newline
 }
 
 function top (list) {
