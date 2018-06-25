@@ -5,30 +5,39 @@ var NEWLINE = Buffer.from('\n')
 
 module.exports = Diff
 
-function Diff (opts) {
-  if (!(this instanceof Diff)) return new Diff(opts)
-  if (!opts) opts = {}
+function Diff (
+  {
+    height=Infinity,
+    softwareNewline,
+    softwareWrapping,
+    width=Infinity
+  }={}
+) {
+  if (!(this instanceof Diff))
+    return new Diff({height, softwareNewline, softwareWrapping, width})
 
   this.x = 0
   this.y = 0
-  this.width = opts.width || Infinity
-  this.height = opts.height || Infinity
+  this.width = width
+  this.height = height
+
+  this.softwareClearline = softwareNewline
+  this.softwareNewline = softwareNewline
+  this.softwareWrapping = softwareWrapping
 
   this._buffer = null
   this._out = []
   this._lines = []
 }
 
-Diff.prototype.resize = function (opts) {
-  if (!opts) opts = {}
+Diff.prototype.resize = function ({height, width}={}) {
+  if (width ) this.width  = width
+  if (height) this.height = height
 
-  if (opts.width) this.width = opts.width
-  if (opts.height) this.height = opts.height
-
-  if (this._buffer) this.update(this._buffer)
+  let result = ''
+  if (this._buffer) result = this.update(this._buffer)
 
   var last = top(this._lines)
-
   if (!last) {
     this.x = 0
     this.y = 0
@@ -36,13 +45,15 @@ Diff.prototype.resize = function (opts) {
     this.x = last.remainder
     this.y = last.y + last.height
   }
+
+  return result
 }
 
 Diff.prototype.toString = function () {
   return this._buffer
 }
 
-Diff.prototype.update = function (buffer, opts) {
+Diff.prototype.update = function (buffer, {moveTo}={}) {
   this._buffer = Buffer.isBuffer(buffer) ? buffer.toString() : buffer
 
   var other = this._buffer
@@ -78,20 +89,12 @@ Diff.prototype.update = function (buffer, opts) {
       }
     }
 
-    this._moveTo(0, a.y)
-    this._write(a)
     if (a.y !== b.y || a.height !== b.height) scrub = true
-    if (b.length > a.length || scrub) this._push(CLEAR_LINE)
-    if (a.newline) this._newline()
+    this._write(a, b.length > a.length || scrub)
   }
 
   for (; i < lines.length; i++) {
-    a = lines[i]
-
-    this._moveTo(0, a.y)
-    this._write(a)
-    if (scrub) this._push(CLEAR_LINE)
-    if (a.newline) this._newline()
+    this._write(lines[i], scrub)
   }
 
   var oldLast = top(oldLines)
@@ -101,8 +104,8 @@ Diff.prototype.update = function (buffer, opts) {
     this._clearDown(oldLast.y + oldLast.height)
   }
 
-  if (opts && opts.moveTo) {
-    this._moveTo(opts.moveTo[0], opts.moveTo[1])
+  if (moveTo) {
+    this._moveTo(moveTo[0], moveTo[1])
   } else if (last) {
     this._moveTo(last.remainder, last.y + last.height)
   }
@@ -114,21 +117,57 @@ Diff.prototype._clearDown = function (y) {
   var x = this.x
   for (var i = this.y; i <= y; i++) {
     this._moveTo(x, i)
-    this._push(CLEAR_LINE)
+    this._clearline()
     x = 0
   }
 }
 
+Diff.prototype._clearline = function () {
+  this._push(this.softwareClearline
+            ? Buffer.alloc(this.width-this.x, ' ')
+            : CLEAR_LINE)
+}
+
 Diff.prototype._newline = function () {
-  this._push(NEWLINE)
+  if(this.softwareNewline) {
+    this._clearline()
+
+    // TODO scroll if we are at terminal bottom line to add a new one
+
+    this._push(moveLeft(this.width))
+    this._push(moveDown(1))
+  } else {
+    this._push(NEWLINE)
+  }
+
   this.x = 0
   this.y++
 }
 
-Diff.prototype._write = function (line) {
-  this._out.push(line.toBuffer())
+Diff.prototype._write = function (line, clearline) {
+  const {height, y} = line
+  let buffer = line.toBuffer()
+
+  this._moveTo(0, y)
+
+  if(this.softwareWrapping && height) {
+    const {width} = this
+
+    let i=0
+    for(; i<height; i++) {
+      this._push(buffer.slice(i*width, (i+1)*width))
+      this._moveTo(0, y+i+1)
+    }
+    buffer = buffer.slice(i*width)
+  }
+
+  this._push(buffer)
+
   this.x = line.remainder
-  this.y += line.height
+  this.y += height
+
+  if (clearline) this._clearline()
+  if (line.newline) this._newline()
 }
 
 Diff.prototype._moveTo = function (x, y) {
