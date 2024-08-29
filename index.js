@@ -1,4 +1,5 @@
 var ansi = require('ansi-split')
+var wcwidth = require('wcwidth')
 
 var CLEAR_LINE = Buffer.from([0x1b, 0x5b, 0x30, 0x4b])
 var NEWLINE = Buffer.from('\n')
@@ -236,7 +237,7 @@ function moveLeft (n) {
 function length (parts) {
   var len = 0
   for (var i = 0; i < parts.length; i += 2) {
-    len += parts[i].length
+    len += wcwidth(parts[i])
   }
   return len
 }

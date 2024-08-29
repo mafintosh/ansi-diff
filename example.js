@@ -15,8 +15,10 @@ function onresize () {
 }
 
 function render () {
+  const even = Math.floor(Date.now()/1000) % 2 == 0
   var message =
-    'This is a demo\n' +
+    `This is a demo\n` +
+    `|${even ? 'ヤニコード' : '          '}|\n` +
     'The time is: ' + new Date() + '\n' +
     'That is all\n'
 
